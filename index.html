@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SilverConnection App</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #F9F5E7;
+            --primary-green: #1B5E20;
+            --light-green: #E8F5E9;
+            --coin-gold: #F59E0B;
+            --text-dark: #2C3E50;
+            --card-bg: #FFFFFF;
+        }
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background-color: #E5E7EB; color: var(--text-dark); margin: 0; padding: 0; display: flex; justify-content: center; }
+        .app-container { width: 100%; max-width: 420px; background-color: var(--bg-color); min-height: 100vh; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; overflow-x: hidden; }
+        
+        /* 歡迎/登入畫面覆蓋層 */
+        #welcome-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #F9F5E7, #E8F5E9);
+            z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center;
+            padding: 30px; text-align: center;
+        }
+        .welcome-logo { font-size: 80px; color: var(--primary-green); margin-bottom: 20px; }
+        #welcome-screen h1 { color: var(--primary-green); margin-bottom: 10px; font-size: 28px;}
+        #welcome-screen p { color: #7F8C8D; margin-bottom: 30px; }
+        .name-input { width: 100%; padding: 15px; border: 2px solid #BDC3C7; border-radius: 12px; font-size: 18px; text-align: center; margin-bottom: 20px; outline: none; transition: border-color 0.3s;}
+        .name-input:focus { border-color: var(--primary-green); }
+        .start-btn { width: 100%; background: var(--primary-green); color: white; border: none; padding: 15px; border-radius: 12px; font-size: 18px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(27,94,32,0.3); transition: transform 0.2s;}
+        .start-btn:active { transform: scale(0.95); }
+
+        /* 主要 App 內容 (初始隱藏) */
+        #main-app { display: none; }
+
+        .header { background: linear-gradient(135deg, #1B5E20, #2E7D32); color: white; padding: 25px 20px 20px; border-bottom-left-radius: 25px; border-bottom-right-radius: 25px; text-align: center; }
+        .header h1 { margin: 0; font-size: 22px; font-weight: 800; }
+        .level-badge { background: rgba(255,255,255,0.2); padding: 5px 15px; border-radius: 20px; font-size: 14px; display: inline-block; margin-top: 10px; }
+        
+        .dashboard { background: var(--card-bg); margin: -15px 20px 20px; padding: 20px; border-radius: 16px; box-shadow: 0 8px 15px rgba(0,0,0,0.05); position: relative; z-index: 2; border: 1px solid #EAEAEA; }
+        .user-greeting { font-size: 20px; color: var(--primary-green); margin-top: 0; margin-bottom: 15px; border-bottom: 1px dashed #ccc; padding-bottom: 10px;}
+        .stats-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .stat-main { text-align: left; }
+        .stat-main span { font-size: 14px; color: #7F8C8D; }
+        .stat-main h2 { margin: 0; font-size: 32px; color: var(--primary-green); }
+        .coin-box { background: #FFF8E1; padding: 10px 15px; border-radius: 12px; font-weight: bold; color: var(--coin-gold); font-size: 20px;}
+        
+        .progress-container { width: 100%; background: #E0E0E0; border-radius: 10px; height: 12px; overflow: hidden; }
+        .progress-bar { background: var(--coin-gold); height: 100%; width: 69%; transition: width 0.5s ease-in-out; }
+        .progress-text { font-size: 12px; color: #7F8C8D; margin-top: 5px; display: flex; justify-content: space-between;}
+
+        .tabs { display: flex; justify-content: space-around; margin: 20px; background: white; border-radius: 12px; padding: 5px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);}
+        .tab-btn { background: transparent; border: none; padding: 10px 15px; font-weight: bold; color: #7F8C8D; border-radius: 8px; width: 100%; transition: 0.3s; cursor: pointer; }
+        .tab-btn.active { background: var(--light-green); color: var(--primary-green); }
+        .tab-content { display: none; padding-bottom: 40px; }
+        .tab-content.active { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card { background: var(--card-bg); margin: 0 20px 15px; padding: 16px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border-left: 4px solid var(--primary-green); }
+        .card.reward { border-left-color: var(--coin-gold); }
+        .card-icon { font-size: 24px; color: var(--primary-green); width: 40px; text-align: center; }
+        .card.reward .card-icon { color: var(--coin-gold); }
+        .card-info { flex-grow: 1; margin-left: 10px; }
+        .card-info h3 { margin: 0 0 4px 0; font-size: 16px; }
+        .card-info p { margin: 0; font-size: 13px; color: #7F8C8D; }
+        
+        button.action-btn { background: var(--primary-green); color: white; border: none; padding: 8px 16px; border-radius: 20px; font-weight: bold; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 5px rgba(27,94,32,0.3); }
+        button.action-btn:active { transform: scale(0.95); }
+        button.spend-btn { background: var(--coin-gold); box-shadow: 0 2px 5px rgba(245,158,11,0.3);}
+        button:disabled { background: #BDC3C7 !important; cursor: not-allowed; box-shadow: none; }
+
+        .leaderboard-item { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .rank { font-weight: bold; width: 30px; color: var(--primary-green); text-align: center; }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; background: #E8F5E9; display: flex; align-items: center; justify-content: center; margin-right: 15px; font-size: 20px;}
+        
+        .reset-btn { display: block; margin: 20px auto; background: none; border: 1px solid #ccc; color: #7F8C8D; padding: 5px 15px; border-radius: 20px; cursor: pointer; font-size: 12px; }
+
+        #toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: rgba(44, 62, 80, 0.95); color: white; padding: 12px 24px; border-radius: 30px; font-size: 14px; display: none; z-index: 1000; box-shadow: 0 5px 15px rgba(0,0,0,0.2); font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    
+    <div id="welcome-screen">
+        <i class="fa-solid fa-gem welcome-logo"></i>
+        <h1>SilverConnection</h1>
+        <p>Gamifying Healthy Aging</p>
+        <input type="text" id="name-input" class="name-input" placeholder="Enter your nickname..." autocomplete="off">
+        <button class="start-btn" onclick="startApp()">Start Mining</button>
+    </div>
+
+    <div id="main-app">
+        <div class="header">
+            <h1>SilverConnection</h1>
+            <div class="level-badge" id="level-display"><i class="fa-solid fa-medal"></i> Bronze Miner Level 1</div>
+        </div>
+
+        <div class="dashboard">
+            <h3 class="user-greeting" id="user-greeting"><i class="fa-solid fa-user-circle"></i> Hello, Miner!</h3>
+            
+            <div class="stats-row">
+                <div class="stat-main">
+                    <span>Today's Steps</span>
+                    <h2 id="steps-display">3,450</h2>
+                </div>
+                <div class="coin-box">
+                    <i class="fa-solid fa-coins"></i> <span id="coins-display">120</span>
+                </div>
+            </div>
+            <div class="progress-container">
+                <div class="progress-bar" id="step-progress"></div>
+            </div>
+            <div class="progress-text">
+                <span>0</span>
+                <span>Goal: 5,000</span>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('missions')">Missions</button>
+            <button class="tab-btn" onclick="switchTab('community')">Community</button>
+            <button class="tab-btn" onclick="switchTab('rewards')">Rewards</button>
+        </div>
+
+        <div id="missions" class="tab-content active">
+            <div class="card">
+                <div class="card-icon"><i class="fa-solid fa-person-walking"></i></div>
+                <div class="card-info"><h3>Walk 500 Steps</h3><p>Stay active today!</p></div>
+                <button class="action-btn" onclick="earn(500, 20, this)">+20 Coins</button>
+            </div>
+            <div class="card">
+                <div class="card-icon"><i class="fa-solid fa-users"></i></div>
+                <div class="card-info"><h3>Community Yoga</h3><p>Join the park session</p></div>
+                <button class="action-btn" onclick="earn(1000, 50, this)">+50 Coins</button>
+            </div>
+            <div class="card">
+                <div class="card-icon"><i class="fa-solid fa-stethoscope"></i></div>
+                <div class="card-info"><h3>Health Checkup</h3><p>Upload annual report</p></div>
+                <button class="action-btn" onclick="earn(0, 100, this)">+100 Coins</button>
+            </div>
+        </div>
+
+        <div id="community" class="tab-content">
+            <div class="card" style="flex-direction: column; align-items: stretch;">
+                <h3 style="color: var(--primary-green); margin-top: 0; text-align: center;">🏆 Local Leaderboard</h3>
+                <div class="leaderboard-item">
+                    <div class="rank">1</div><div class="avatar">👵</div>
+                    <div class="card-info"><h3>Mrs. Chen</h3><p>8,420 steps</p></div>
+                </div>
+                <div class="leaderboard-item">
+                    <div class="rank">2</div><div class="avatar">👴</div>
+                    <div class="card-info"><h3>Mr. Wang</h3><p>6,100 steps</p></div>
+                </div>
+                <div class="leaderboard-item" style="background: #FFF8E1; padding: 5px; border-radius: 8px; border: 2px solid var(--coin-gold);">
+                    <div class="rank">3</div><div class="avatar" style="background: var(--coin-gold); color:white;"><i class="fa-solid fa-star"></i></div>
+                    <div class="card-info"><h3 id="leaderboard-name">Player</h3><p id="leaderboard-steps">3,450 steps</p></div>
+                </div>
+            </div>
+            <button class="reset-btn" onclick="resetUser()"><i class="fa-solid fa-rotate"></i> Change User</button>
+        </div>
+
+        <div id="rewards" class="tab-content">
+            <div class="card reward">
+                <div class="card-icon"><i class="fa-solid fa-basket-shopping"></i></div>
+                <div class="card-info"><h3>Organic Veggies</h3><p>Local farm fresh pack</p></div>
+                <button class="action-btn spend-btn" onclick="spend(100)">-100 Coins</button>
+            </div>
+            <div class="card reward">
+                <div class="card-icon"><i class="fa-solid fa-bus"></i></div>
+                <div class="card-info"><h3>Bus Ticket</h3><p>Free ride in the city</p></div>
+                <button class="action-btn spend-btn" onclick="spend(50)">-50 Coins</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="toast">Message</div>
+
+<script>
+    let steps = 3450;
+    let coins = 120;
+    const goal = 5000;
+    let userName = "";
+
+    // 網頁載入時檢查是否已登入
+    window.onload = function() {
+        userName = localStorage.getItem('silver_user_name');
+        if (userName) {
+            // 如果已經存過名字，直接隱藏歡迎畫面，顯示主 App
+            document.getElementById('welcome-screen').style.display = 'none';
+            document.getElementById('main-app').style.display = 'block';
+            setupUserData();
+            updateUI();
+        }
+        // 如果沒有名字，就會停留在歡迎畫面讓使用者輸入
+    };
+
+    // 點擊 Start 按鈕觸發
+    function startApp() {
+        const inputBox = document.getElementById('name-input');
+        userName = inputBox.value.trim();
+        
+        if (userName === "") {
+            userName = "Guest Miner"; // 沒輸入給預設值
+        }
+
+        // 存入本地端
+        localStorage.setItem('silver_user_name', userName);
+        
+        // 切換畫面
+        document.getElementById('welcome-screen').style.display = 'none';
+        document.getElementById('main-app').style.display = 'block';
+        
+        setupUserData();
+        updateUI();
+        triggerConfetti(); // 登入噴紙花
+        showToast(`Welcome, ${userName}!`);
+    }
+
+    // 將名字設定到畫面中
+    function setupUserData() {
+        document.getElementById('user-greeting').innerHTML = `<i class="fa-solid fa-user-circle"></i> Hello, ${userName}!`;
+        document.getElementById('leaderboard-name').innerText = `${userName} (You)`;
+    }
+
+    // 重置按鈕
+    function resetUser() {
+        localStorage.removeItem('silver_user_name');
+        location.reload(); 
+    }
+
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        event.target.classList.add('active');
+    }
+
+    function updateUI() {
+        document.getElementById('steps-display').innerText = steps.toLocaleString();
+        document.getElementById('coins-display').innerText = coins;
+        document.getElementById('leaderboard-steps').innerText = `${steps.toLocaleString()} steps`;
+        
+        let progress = (steps / goal) * 100;
+        if(progress > 100) progress = 100;
+        document.getElementById('step-progress').style.width = `${progress}%`;
+
+        if(steps >= 5000) {
+            document.getElementById('level-display').innerHTML = '<i class="fa-solid fa-trophy"></i> Silver Miner Level 2';
+            document.getElementById('level-display').style.background = 'rgba(245, 158, 11, 0.9)';
+        }
+    }
+
+    function earn(addedSteps, earnedCoins, btnNode) {
+        steps += addedSteps;
+        coins += earnedCoins;
+        btnNode.innerText = 'Completed';
+        btnNode.disabled = true;
+        updateUI();
+
+        if(steps >= 5000 && steps - addedSteps < 5000) {
+            triggerConfetti();
+            showToast('🎉 Goal Reached! You leveled up!');
+        } else {
+            showToast(`+${earnedCoins} Coins! Keep going! 🏃`);
+        }
+    }
+
+    function spend(cost) {
+        if (coins >= cost) {
+            coins -= cost;
+            updateUI();
+            triggerConfetti();
+            showToast(`🎁 Reward Redeemed Successfully!`);
+        } else {
+            showToast(`⚠️ Need ${cost - coins} more coins.`);
+        }
+    }
+
+    function triggerConfetti() {
+        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#1B5E20', '#F59E0B', '#E8F5E9'] });
+    }
+
+    function showToast(msg) {
+        const toast = document.getElementById('toast');
+        toast.innerText = msg;
+        toast.style.display = 'block';
+        setTimeout(() => toast.style.display = 'none', 3000);
+    }
+</script>
+
+</body>
+</html>
